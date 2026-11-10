@@ -2,6 +2,7 @@
 
 ## Não lançado
 
+- Removido o Exemplo ArmaduraStruct: o aplicativo abre vazio quando não há projeto para recuperar, sem a opção **Carregar projeto de exemplo**, o aviso e a conferência do exemplo. Projetos salvos e a recuperação local não são afetados.
 - Arquivo → Projetos recentes: histórico local (até 10) de projetos abertos ou gravados, separado de autosave/backups; reabrir pede nova seleção e respeita alterações não salvas e gravações pendentes. [Uso e limites](docs/PROJETOS-RECENTES.md).
 
 ## 0.5.0 · 2026-11-09
