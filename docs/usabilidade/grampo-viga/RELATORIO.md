@@ -6,7 +6,7 @@ Relatório de ensaio de uso do lançamento de grampos de viga em U na vista late
 
 | Item                    | Valor                                                                                                                                                                                                                                                                      |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Versão                  | ArmaduraStruct 0.6.1, `master` em `3ab67ea` (13/11/2026), sem alterações locais                                                                                                                                                                                            |
+| Versão                  | ArmaduraStruct 0.6.1. Ensaio manual em `master` `3ab67ea`; roteiro revalidado sem diferenças de fluxo em `a814d6f` (13/11/2026, após o merge de #194/#195), sem alterações locais                                                                                          |
 | Sistema                 | Windows 11 Pro 23H2 (10.0.22631). **Linux não foi testado**                                                                                                                                                                                                                |
 | Execução                | Interface web (`npm run dev`, Vite) em navegador Chromium; **aplicativo desktop Tauri não testado**                                                                                                                                                                        |
 | Viewport                | 1366 × 768 (notebook)                                                                                                                                                                                                                                                      |
@@ -14,9 +14,9 @@ Relatório de ensaio de uso do lançamento de grampos de viga em U na vista late
 | Reprodução              | [`ensaio.spec.ts`](ensaio.spec.ts) repete o fluxo no Microsoft Edge 157 (Chromium) via Playwright 1.58.2 e gera as capturas desta pasta                                                                                                                                    |
 | Arquivo de partida      | [`forma-viga-v1.dxf`](forma-viga-v1.dxf) (SHA-256 `89e5ad55…66b3`): elevação da V1 20×50, vão livre de 4.000 mm entre P1 e P2 (30×30), e seção 20×50; 16 entidades, mm                                                                                                     |
 | Peça ensaiada           | Grampo em U, Ø10 CA-50, mandril 50 mm, L = 500 mm, T = 130 mm (= 200 − 2·25 cobrimento − 2·5 estribo − 10 bitola)                                                                                                                                                          |
-| Alterações em andamento | PRs abertos conferidos: #194 altera a representação de faixa só para estribos; #191 e #192 não tocam o grampo. Nada interfere no ensaio                                                                                                                                    |
+| Alterações em andamento | Conferidos #194 (faixa sem traços, integrada durante o ensaio: só estribos), #191 e #192/#195 (sem efeito no grampo)                                                                                                                                                       |
 
-**Tempos.** Não foram medidos tempos humanos, porque o operador foi um agente. O roteiro automatizado registra apenas o tempo de máquina ([`tempos-maquina.json`](tempos-maquina.json): 0,9 s / 0,2 s / 0,3 s por cenário). Isso mostra que o aplicativo responde de imediato, mas **não** representa a rapidez de um usuário. A seção 6 traz um protocolo curto para a cronometragem humana.
+**Tempos.** Não foram medidos tempos humanos, porque o operador foi um agente. O roteiro automatizado registra apenas o tempo de máquina ([`tempos-maquina.json`](tempos-maquina.json): 0,8 s / 0,2 s / 0,3 s por cenário). Isso mostra que o aplicativo responde de imediato, mas **não** representa a rapidez de um usuário. A seção 6 traz um protocolo curto para a cronometragem humana.
 
 ## 2. Cenários e evidências
 
@@ -39,7 +39,7 @@ Atritos concretos:
 - **T exige conta manual.** A janela pede medidas pelo eixo, coerente com a convenção documentada, mas o detalhista parte da seção de concreto (20 cm) e precisa calcular 130 mm. O padrão T = 300 mm é maior que a largura da viga ensaiada. Não houve erro, só um passo mental a mais.
 - **O painel cobre a região de trabalho.** A 1366 × 768, o painel (~560 × 245 px) fica sobre o canto superior esquerdo do canvas. Ao aproximar o zoom no apoio esquerdo, a face superior da viga e o topo do pilar ficaram sob o painel (captura 02). O mesmo componente visual é usado pelos estribos (`stirrup-launch-panel`); ver a avaliação equivalente em #178.
 - **Clique acidental vira ponto.** Durante o ensaio, uma mudança no tamanho da janela fez um clique destinado ao botão **Ajustar à tela** cair no canvas. O app tomou esse clique como ponto de inserção. **Voltar etapa** recuperou sem resíduo. Como um único ponto conclui a captura, o custo de um clique errado é baixo, mas ele passa despercebido se o usuário não olhar a prévia.
-- **Unidades misturadas.** A entrada é em mm; as cotas no desenho saem em cm ("L = 50,00 cm (eixo)").
+- **Entrada em mm, cotas em cm.** É a convenção do projeto (AGENTS.md, regra 3: cotas gráficas em cm), não um defeito. Registro apenas que o painel mostra L = 500,00 mm e o desenho L = 50,00 cm.
 
 ### Cenário 2 — repetir no apoio P2 (familiaridade)
 
