@@ -61,13 +61,36 @@ describe('coordenação de atualizações do produto', () => {
     expect(b.check).toHaveBeenCalledTimes(1);
   });
   it('offline mantém a versão nativa real e não declara atualizado', async () => {
-    const b = bridge();
+    const b = bridge(vi.fn().mockRejectedValue(Error('IPC indisponível')));
     const checker = createProductUpdateChecker(b, () => false);
     const r = await checker.check(true);
     expect(r.status).toBe('offline');
     expect(r.currentVersion).toBe('0.9.0');
     expect(r.offer).toBeNull();
-    expect(b.check).not.toHaveBeenCalled();
+    expect(b.prepare).not.toHaveBeenCalled();
+  });
+  it('navigator.onLine falso (WebKitGTK) não impede a consulta nativa ao abrir', async () => {
+    const b = bridge();
+    const checker = createProductUpdateChecker(b, () => false);
+    const r = await checker.check();
+    expect(b.check).toHaveBeenCalledTimes(1);
+    expect(r.status).toBe('available');
+    expect(r.offer?.version).toBe('0.10.0');
+    expect(b.prepare).not.toHaveBeenCalled();
+    expect(b.arm).not.toHaveBeenCalled();
+    expect(b.finish).not.toHaveBeenCalled();
+  });
+  it('resultado offline do backend nativo não é convertido em atualizado', async () => {
+    const offline = state({
+      status: 'offline',
+      offer: null,
+      message: 'Sem conexão com o catálogo oficial.',
+    });
+    const b = bridge(vi.fn(async () => offline));
+    const checker = createProductUpdateChecker(b, () => true);
+    const r = await checker.check();
+    expect(r.status).toBe('offline');
+    expect(r.offer).toBeNull();
   });
   it('falha permite tentativa manual posterior com limitação de chamadas', async () => {
     let now = 0;

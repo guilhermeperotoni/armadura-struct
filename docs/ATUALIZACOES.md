@@ -60,3 +60,25 @@ O publicador central, as tags imutáveis e as chaves permanecem como estão. **N
 - CI desktop: compila os dois formatos e executa o adaptador nativo em diretório temporário isolado. O teste é ignorado por padrão e exige `CI=true` e autorização de sandbox de teste. Não usa uma instalação pessoal nem publica os pacotes.
 
 A atualização completa entre duas releases publicadas, com janelas reais, e a recuperação diante de corte de energia/antivírus exigem validação adicional em máquinas de teste. O smoke test do adaptador e os testes de assinatura não substituem essa validação. A inspeção de outras instâncias tem os mesmos limites de acesso do Launcher; não é um serviço privilegiado.
+
+## Checagem da issue #188
+
+Base conferida: `master` em `012da27` (versão 0.6.1), catálogo oficial assinado publicado em 12/11/2026 22:23 UTC e [`distribution.json`](https://github.com/ricardocorsini/openstruct-catalog/blob/main/distribution.json) com o produto `armadurastruct`, chave `launcher-packages-v1` e releases publicadas no hub. Análise estática e testes TypeScript em Windows 11 x86_64; nenhum aplicativo nativo, instalador ou atualização real foi executado.
+
+**Estado atual por versão publicada.** O atualizador entrou no `master` em `4fb6c2b` (#108, 10/11/2026). As tags `v0.1.1`–`v0.5.0` não o contêm; `v0.6.0` e `v0.6.1` contêm. O catálogo oficial lista 0.1.1, 0.2.0, 0.3.0, 0.4.0, 0.5.0 e 0.6.1, todas com NSIS Windows x86_64 e AppImage Linux x86_64 (`minLauncherVersion` 0.2.0, compatível com o núcleo 0.2.4). Portanto:
+
+- Qualquer instalação 0.5.0 ou anterior, aberta diretamente ou pelo atalho, **não consulta atualizações**: é implementação ausente no binário instalado, não falha de consulta. Esses pacotes não ganham a função retroativamente; o caminho seguro é atualizar uma vez pelo Struct Launcher (instalação gerenciada) ou baixar o pacote 0.6.1 do catálogo e substituir pelo mesmo método (AppImage no mesmo caminho, NSIS por usuário).
+- A 0.6.1 é a primeira release catalogada com o atualizador e é também a mais nova. Ao abri-la, o resultado correto é “Atualizado”; não existe ainda uma versão posterior para comprovar a oferta entre duas releases publicadas.
+- Atalho que abre uma cópia antiga é outro problema ([Launcher #3](https://github.com/ricardocorsini/launcher-struct/issues/3)): o executável aberto continua sendo o pacote antigo, sem atualizador. Conferir em **Ajuda → Verificar atualizações** a “Versão em execução”.
+
+Não foi possível confirmar a versão, o formato de pacote ou o caminho do executável usados no relato do Linux. A causa mais provável, pelas datas, é uma instalação ≤ 0.5.0; isso precisa ser confirmado por quem reproduziu.
+
+**Lacunas corrigidas no fluxo existente (sem reimplementar).**
+
+1. `navigator.onLine` era usado como portão: com valor falso, a consulta nativa nem era chamada e o resultado era “Sem conexão”. No Linux o WebView é WebKitGTK, cujo indicador depende do monitor de rede do sistema e pode ser falso com rede ativa (ambientes sem NetworkManager, VPNs, AppImage). Agora o backend Rust, com timeout de 20 s, sempre decide; o indicador só explica uma falha da chamada IPC. Continua não havendo polling e offline nunca vira “Atualizado”.
+2. Uma falha em `Installation::detect` (marcador gerenciado inválido, AppImage não reconhecido, etc.) tornava todo o serviço de atualização indisponível e a consulta ao abrir falhava em silêncio. Agora o aplicativo registra a falha e usa o modo de sistema: consulta e oferece a versão, mas não baixa nem executa instaladores, e orienta a atualizar pelo método original. Não há troca silenciosa de método de instalação.
+3. Mensagens de falha de rede: conexão recusada aparece como “Sem conexão com o catálogo oficial” e tempo esgotado tem mensagem própria, mantendo o detalhe técnico.
+
+Contratos inalterados: mesmo catálogo assinado (`catalog-v1`), mesmas chaves de pacote, seleção por produto/SemVer/canal estável/plataforma/arquitetura/formato, sem feed Tauri e sem `launcher/latest.json`.
+
+**Testes.** Aprovados: `tests/appUpdates.test.ts` (inclui `navigator.onLine` falso com consulta nativa, offline real e resultado offline do backend). Não executados nesta bancada: testes Rust (sem toolchain local; executados no CI), Playwright e qualquer instalação nativa. Pendente para fechar os critérios da issue: em Linux x86_64 com AppImage e em Windows x86_64 com NSIS, instalar uma build com estas correções, publicar (por quem tem autorização) uma versão de teste maior e confirmar oferta, adiamento, download, reinício, versão realmente executada, inventário e atalhos.

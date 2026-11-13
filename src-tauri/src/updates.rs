@@ -7,9 +7,19 @@ impl Updates {
     pub fn new() -> Self {
         Self(
             (|| {
+                // A failed installation detection must not hide the update check:
+                // fall back to a non-installable mode that still consults the
+                // catalogue and only gives guidance (no installer is executed).
+                let installation =
+                    Installation::detect(cfg!(debug_assertions)).or_else(|e| {
+                        eprintln!(
+                            "Instalação não identificada; atualização interna desabilitada: {e:#}"
+                        );
+                        unidentified_installation()
+                    })?;
                 Updater::new(
                     data_root()?,
-                    Installation::detect(cfg!(debug_assertions))?,
+                    installation,
                     env!("CARGO_PKG_VERSION").into(),
                 )
             })()
@@ -22,6 +32,14 @@ impl Updates {
         }
         self.0.clone()
     }
+}
+/// Same guidance as a system installation: consult only, update by the original method.
+fn unidentified_installation() -> anyhow::Result<Installation> {
+    Ok(Installation {
+        mode: "system".into(),
+        executable: std::env::current_exe()?,
+        managed_root: None,
+    })
 }
 #[tauri::command]
 pub fn updates_snapshot(
