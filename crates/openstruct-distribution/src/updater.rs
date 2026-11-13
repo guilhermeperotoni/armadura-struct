@@ -476,15 +476,22 @@ impl Updater {
             }
             Err(e) => {
                 let msg = format!("{e:#}");
+                let network = e.downcast_ref::<reqwest::Error>();
                 let status = if msg.contains("não há pacote compatível") {
                     "unsupported"
-                } else if e
-                    .downcast_ref::<reqwest::Error>()
-                    .is_some_and(|e| e.is_connect())
-                {
+                } else if network.is_some_and(|e| e.is_connect()) {
                     "offline"
                 } else {
                     "error"
+                };
+                let msg = match network {
+                    Some(n) if n.is_connect() => format!(
+                        "Sem conexão com o catálogo oficial. Conecte-se e verifique novamente. ({msg})"
+                    ),
+                    Some(n) if n.is_timeout() => format!(
+                        "Tempo esgotado ao consultar o catálogo oficial. Verifique a conexão e tente novamente. ({msg})"
+                    ),
+                    _ => msg,
                 };
                 self.change(|s| {
                     s.status = status.into();

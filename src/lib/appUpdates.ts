@@ -92,14 +92,20 @@ export function createProductUpdateChecker(
         const base = last ?? (await bridge.snapshot());
         last = base;
         if (!bridge.native) return base;
-        if (!online())
+        // navigator.onLine is only a hint: WebKitGTK (Linux) can report false while
+        // the network works. The native check has its own timeout and classifies
+        // connection failures, so it decides; the hint only explains a failed IPC call.
+        try {
+          return await bridge.check();
+        } catch (error) {
+          if (online()) throw error;
           return {
             ...base,
             status: 'offline' as const,
             offer: null,
             message: 'Sem conexão. Conecte-se e verifique novamente.',
           };
-        return bridge.check();
+        }
       })()
         .then((result) => {
           last = result;
