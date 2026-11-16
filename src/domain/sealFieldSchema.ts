@@ -5,9 +5,40 @@ export const SEAL_PROJECT_SCHEMA = 'armadurastruct/39' as const;
 /** /40 is reserved by a parallel contribution; /41 adds custom seal properties. */
 export const CUSTOM_SEAL_PROJECT_SCHEMA = 'armadurastruct/41' as const;
 
+/** /42 adds linked external template sources (AS-15). */
+export const TEMPLATE_SOURCE_PROJECT_SCHEMA = 'armadurastruct/42' as const;
+
 /** Formats that read the documentary seal data of /39. */
 export const isSealProjectSchema = (schema: unknown) =>
-  schema === SEAL_PROJECT_SCHEMA || schema === CUSTOM_SEAL_PROJECT_SCHEMA;
+  schema === SEAL_PROJECT_SCHEMA ||
+  schema === CUSTOM_SEAL_PROJECT_SCHEMA ||
+  schema === TEMPLATE_SOURCE_PROJECT_SCHEMA;
+
+/** Formats that read custom seal properties of /41. */
+export const isCustomSealProjectSchema = (schema: unknown) =>
+  schema === CUSTOM_SEAL_PROJECT_SCHEMA ||
+  schema === TEMPLATE_SOURCE_PROJECT_SCHEMA;
+
+/** Linked template sources cannot be read before /42. */
+export function hasTemplateSourceData(input: unknown): boolean {
+  if (!input || typeof input !== 'object') return false;
+  const data = input as Record<string, unknown>;
+  const linked = (template: unknown) =>
+    !!template &&
+    typeof template === 'object' &&
+    (template as Record<string, unknown>).sourceLink !== undefined;
+  return (
+    data.sheetTemplateSources !== undefined ||
+    (Array.isArray(data.sheetTemplates) && data.sheetTemplates.some(linked)) ||
+    (Array.isArray(data.sheets) &&
+      data.sheets.some(
+        (sheet) =>
+          !!sheet &&
+          typeof sheet === 'object' &&
+          linked((sheet as Record<string, unknown>).paperTemplate),
+      ))
+  );
+}
 
 function templateHasCustomBindings(template: unknown) {
   if (!template || typeof template !== 'object') return false;
@@ -90,6 +121,9 @@ export function hasSealData(input: unknown): boolean {
 export function withSealDataVersion<T extends { schema: string }>(
   project: T,
 ): T {
+  if (project.schema === TEMPLATE_SOURCE_PROJECT_SCHEMA) return project;
+  if (hasTemplateSourceData(project))
+    return { ...project, schema: TEMPLATE_SOURCE_PROJECT_SCHEMA };
   if (project.schema === CUSTOM_SEAL_PROJECT_SCHEMA) return project;
   if (hasCustomSealData(project))
     return { ...project, schema: CUSTOM_SEAL_PROJECT_SCHEMA };

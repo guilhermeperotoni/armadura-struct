@@ -67,6 +67,14 @@ const fieldSchema = z.object({
   fontStyle: z.enum(['normal', 'italic']).optional(),
 });
 export type SheetTemplateField = z.infer<typeof fieldSchema>;
+/** Which accepted revision of an external source this copy corresponds to (AS-15). */
+export const templateSourceLinkSchema = z.strictObject({
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,200}$/),
+  contentHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+});
+export type TemplateSourceLink = z.infer<typeof templateSourceLinkSchema>;
+
 export const sheetTemplateSchema = z.object({
   id,
   name: z.string().trim().min(1).max(150),
@@ -81,6 +89,7 @@ export const sheetTemplateSchema = z.object({
   seal: rect.optional(),
   geometry: z.array(geometrySchema).max(100000),
   fields: z.array(fieldSchema).max(1000),
+  sourceLink: templateSourceLinkSchema.optional(),
 });
 export type SheetTemplate = Omit<
   z.infer<typeof sheetTemplateSchema>,
@@ -363,8 +372,10 @@ export function duplicateSheetTemplate(
   template: SheetTemplate,
   name: string,
 ): SheetTemplate {
+  // A duplicate is an independent definition, not linked to the source.
+  const { sourceLink: _link, ...content } = template;
   return {
-    ...structuredClone(template),
+    ...structuredClone(content),
     id: uid(),
     name,
     revision: 1,
@@ -378,10 +389,11 @@ export function duplicateSheetTemplate(
 export function removeSheetTemplate(project: Project, id: string): Project {
   const templates = project.sheetTemplates ?? [];
   if (!templates.some((template) => template.id === id)) return project;
-  return {
+  const next = {
     ...project,
     sheetTemplates: templates.filter((template) => template.id !== id),
   };
+  return pruneUnusedTemplateSources(next);
 }
 
 export function applySheetTemplate(
@@ -447,7 +459,9 @@ export function encodeSheetTemplate(
   template: SheetTemplate,
   project: Pick<Project, 'sealPropertyDefinitions'> = {},
 ) {
-  const validated = validateSheetTemplate(template);
+  // Source tracking is local to the project; it never goes into the file.
+  const { sourceLink: _link, ...portable } = validateSheetTemplate(template);
+  const validated = portable as SheetTemplate;
   const properties = templatePropertyDefinitions(project, validated);
   const custom = hasCustomSealData({ sheetTemplates: [validated] });
   if (custom)
@@ -474,9 +488,15 @@ export function decodeSheetTemplate(raw: string): SheetTemplate {
   return decodeSheetTemplateFile(raw).template;
 }
 
+export type SheetTemplateFileFormat =
+  | typeof catalogVersion
+  | typeof linkedCatalogVersion
+  | typeof propertyCatalogVersion;
+
 export function decodeSheetTemplateFile(raw: string): {
   template: SheetTemplate;
   properties: SealPropertyDefinition[];
+  format: SheetTemplateFileFormat;
 } {
   const data: unknown = JSON.parse(raw);
   if (
@@ -514,7 +534,11 @@ export function decodeSheetTemplateFile(raw: string): {
         .optional(),
     })
     .parse(data);
-  const template = validateSheetTemplate(payload.template);
+  // A file never carries the local source tracking of another project.
+  const { sourceLink: _link, ...portable } = validateSheetTemplate(
+    payload.template,
+  );
+  const template = portable as SheetTemplate;
   const properties = (payload.properties ?? []).map(
     ({ aliases: _aliases, ...item }) => item,
   );
@@ -527,7 +551,7 @@ export function decodeSheetTemplateFile(raw: string): {
     { sealPropertyDefinitions: parsed.data } as Project,
     template,
   );
-  return { template, properties: parsed.data };
+  return { template, properties: parsed.data, format: payload.schema };
 }
 
 /** Geometry and text heights enter in normalized millimeters from the existing importer. */
@@ -574,14 +598,14 @@ export function sheetTemplateGeometryFromMask(mask: Mask): PaperPrimitive[] {
 export function detachSheetTemplate(project: Project, id: string): Project {
   const sheet = project.sheets.find((candidate) => candidate.id === id);
   if (!sheet?.paperTemplate) return project;
-  return {
+  return pruneUnusedTemplateSources({
     ...project,
     sheets: project.sheets.map((candidate) =>
       candidate.id === id
         ? { ...candidate, paperTemplate: undefined }
         : candidate,
     ),
-  };
+  });
 }
 
 export function calibrateSheetTemplateGeometry(
@@ -624,4 +648,20 @@ export function calibrateSheetTemplateGeometry(
         }
       : undefined,
   }));
+}
+
+/** Sheets keep their copies; a source no copy refers to is dropped (AS-15). */
+export function pruneUnusedTemplateSources(project: Project): Project {
+  if (!project.sheetTemplateSources) return project;
+  const used = new Set(
+    [
+      ...(project.sheetTemplates ?? []),
+      ...project.sheets.flatMap((sheet) => sheet.paperTemplate ?? []),
+    ].flatMap((template) =>
+      template.sourceLink ? [template.sourceLink.id] : [],
+    ),
+  );
+  const kept = project.sheetTemplateSources.filter((item) => used.has(item.id));
+  if (kept.length === project.sheetTemplateSources.length) return project;
+  return { ...project, sheetTemplateSources: kept.length ? kept : undefined };
 }

@@ -70,6 +70,7 @@ A master desta revisão usa `armadurastruct/35` e `openstruct.detail/23` ([JSON 
 - [Modelos reutilizáveis de margem e selo](MARGENS-E-SELOS.md)
 - [Dados e vínculos do selo](PREVIA-DE-DADOS-DO-SELO.md)
 - [Propriedades personalizadas do selo](PROPRIEDADES-PERSONALIZADAS-DO-SELO.md)
+- [Modelos vinculados a uma origem externa](MODELOS-VINCULADOS.md)
 - [Quadro de aço vinculado à prancha](QUADRO-NA-PRANCHA.md)
 - [CSV da relação do aço por escopo](CSV-POR-ESCOPO.md)
 

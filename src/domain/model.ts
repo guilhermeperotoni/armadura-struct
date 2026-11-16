@@ -77,6 +77,8 @@ export const DISTRIBUTION_BAND_SCHEMA = 'armadurastruct/37' as const;
 import {
   CUSTOM_SEAL_PROJECT_SCHEMA,
   SEAL_PROJECT_SCHEMA,
+  TEMPLATE_SOURCE_PROJECT_SCHEMA,
+  hasTemplateSourceData,
   hasCustomSealData,
   isSealProjectSchema,
   hasSealData,
@@ -84,6 +86,10 @@ import {
   sheetSealBindingsSchema,
   sheetSealPropertiesSchema,
 } from './sealFieldSchema';
+import {
+  templateSourcesSchema,
+  validateTemplateSources,
+} from './sheetTemplateSources';
 import {
   sealPropertyDefinitionsSchema,
   sealPropertyValuesSchema,
@@ -360,6 +366,7 @@ const schema = z.object({
   sealProperties: projectSealPropertiesSchema.optional(),
   sealPropertyDefinitions: sealPropertyDefinitionsSchema.optional(),
   sealPropertyValues: sealPropertyValuesSchema.optional(),
+  sheetTemplateSources: templateSourcesSchema.optional(),
   sheets: z
     .array(
       z.object({
@@ -627,7 +634,13 @@ export function decodeProject(
   options: { allowOrphanReferences?: boolean } = {},
 ): Project {
   const input = JSON.parse(raw);
-  const customVersion = input?.schema === CUSTOM_SEAL_PROJECT_SCHEMA;
+  const sourceVersion = input?.schema === TEMPLATE_SOURCE_PROJECT_SCHEMA;
+  if (!sourceVersion && hasTemplateSourceData(input))
+    throw new Error(
+      'Modelos vinculados a uma origem externa exigem formato 42.',
+    );
+  const customVersion =
+    sourceVersion || input?.schema === CUSTOM_SEAL_PROJECT_SCHEMA;
   if (!customVersion && hasCustomSealData(input))
     throw new Error('Propriedades personalizadas do selo exigem formato 41.');
   const sealVersion = customVersion || input?.schema === SEAL_PROJECT_SCHEMA;
@@ -1019,15 +1032,17 @@ export function decodeProject(
   let p: Project = {
     ...parsed,
     id,
-    schema: customVersion
-      ? CUSTOM_SEAL_PROJECT_SCHEMA
-      : sealVersion
-        ? SEAL_PROJECT_SCHEMA
-        : templateVersion
-          ? SHEET_TEMPLATE_PROJECT_SCHEMA
-          : bandVersion
-            ? DISTRIBUTION_BAND_SCHEMA
-            : 'armadurastruct/35',
+    schema: sourceVersion
+      ? TEMPLATE_SOURCE_PROJECT_SCHEMA
+      : customVersion
+        ? CUSTOM_SEAL_PROJECT_SCHEMA
+        : sealVersion
+          ? SEAL_PROJECT_SCHEMA
+          : templateVersion
+            ? SHEET_TEMPLATE_PROJECT_SCHEMA
+            : bandVersion
+              ? DISTRIBUTION_BAND_SCHEMA
+              : 'armadurastruct/35',
     ...(linkedFiles === undefined ? {} : { linkedFiles }),
     layers: parsed.layers ?? defaultLayers(),
     sheets: v4
@@ -1081,6 +1096,7 @@ export function decodeProject(
     validateSheetLayout(sheet);
   }
   validateSealPropertyData(p);
+  validateTemplateSources(p);
   const ids = p.bars.map((b) => b.id);
   if (new Set(ids).size !== ids.length)
     throw new Error('IDs de armadura duplicados.');

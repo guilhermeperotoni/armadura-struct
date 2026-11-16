@@ -38,6 +38,7 @@ import {
 } from '../domain/sealProperties';
 import { uid, type Point, type Project, type Sheet } from '../domain/types';
 import SealPropertyImportPanel from './SealPropertyImportPanel';
+import TemplateSourcePanel from './TemplateSourcePanel';
 import { importMask, pickNativeFile, safeName, saveFile } from '../lib/files';
 import SheetTemplateCalibration, {
   type ImportedTemplateGeometry,
@@ -695,6 +696,21 @@ export default function SheetTemplateDialog({
                 </button>
               </div>
             </fieldset>
+            <TemplateSourcePanel
+              project={project}
+              saved={saved}
+              selected={selected}
+              disabled={
+                reading ||
+                !!source ||
+                !!activeApplication ||
+                removing ||
+                !!propertyImport
+              }
+              commit={commit}
+              report={report}
+              onLinked={(template) => switchDraft(template)}
+            />
             {!reading &&
               !source &&
               !activeApplication &&

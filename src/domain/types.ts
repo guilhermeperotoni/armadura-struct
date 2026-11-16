@@ -342,7 +342,10 @@ export type Project = {
     | 'armadurastruct/37'
     | typeof import('./sheetTemplates').SHEET_TEMPLATE_PROJECT_SCHEMA
     | typeof import('./sealFieldSchema').SEAL_PROJECT_SCHEMA
-    | typeof import('./sealFieldSchema').CUSTOM_SEAL_PROJECT_SCHEMA;
+    | typeof import('./sealFieldSchema').CUSTOM_SEAL_PROJECT_SCHEMA
+    | typeof import('./sealFieldSchema').TEMPLATE_SOURCE_PROJECT_SCHEMA;
+  /** Linked external template sources: identity, accepted hash and base (format 42). */
+  sheetTemplateSources?: import('./sheetTemplateSources').TemplateSource[];
   sealProperties?: import('./sealFieldSchema').ProjectSealProperties;
   /** Custom seal property definitions, identified by stable IDs (format 41). */
   sealPropertyDefinitions?: import('./sealProperties').SealPropertyDefinition[];
